@@ -1,0 +1,5 @@
+isort
+nose
+pylint
+
+-r requirements.txt

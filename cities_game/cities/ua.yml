@@ -1,0 +1,20 @@
+languge: "UA"
+countries:
+  - id: 1
+    name: "Україна"
+    regions:
+      - id: 1
+        name: "Автономна республіка Крим"
+        cities:
+          - id: 1
+            name: ""
+      - id: 2
+        name: "Вінницька область"
+        cities:
+          - id: 1
+            name: ""
+      - id: 3
+        name: "Волинська область"
+        cities:
+          - id: 1
+            name: "Луцьк"
