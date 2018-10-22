@@ -1,11 +1,8 @@
 """Game engine"""
 
-from collections import deque
 import signal
-from typing import (
-    List,
-    Set,
-)
+from collections import deque
+from typing import List, Set
 
 
 class CitiesGameEngine:
