@@ -50,7 +50,7 @@ class CitiesGameEngine:
                 curr_player.message('You lost!')
             else:
                 self._used_cities.add(word)
-                letter = word[-1]
+                letter = self.get_new_letter(word)
                 players_in_game.append(curr_player)
 
         return self.finish()
@@ -74,6 +74,17 @@ class CitiesGameEngine:
         self._used_cities = set()
         self._lost_players = []
         self.start()
+
+    def get_new_letter(self, word: str) -> str:
+        """Extract the letter that should be the first one in the next word
+        
+        Arg:
+          word (str): The word to extract the letter from.
+        Returns:
+          srt: The first letter for the next word.
+        """
+
+        return word[-1]
 
     def is_valid(self, word: str, letter: str) -> bool:
         """Validate the word
@@ -103,10 +114,13 @@ class CitiesGameEngine:
         while there is no valid word given
         or timeout is reached.
 
+        Args:
+          player (Player): The player who should name the next word.
+          letter (str): The first lettert for the next word.
         Returns:
             str: Word gotten from the player.
         Raises:
-            TimeoutError: If the word wasn't gotten during the `thinkg_time`
+            TimeoutError: If the word wasn't gotten during the `thinkg_time`.
         """
 
         signal.signal(signal.SIGALRM, lambda *args: raise_(TimeoutError))
@@ -125,6 +139,6 @@ class CitiesGameEngine:
 def raise_(ex):
     """Raise an Exception
 
-    Wrapper to raise an exception in lambda function
+    Wrapper to raise an exception in lambda function.
     """
     raise ex
