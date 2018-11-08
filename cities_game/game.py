@@ -5,8 +5,6 @@ import time
 from collections import deque
 from typing import List, Set
 
-from timeout_decorator import timeout, TimeoutError
-
 
 class GameConfigs:
 
@@ -37,6 +35,8 @@ class Player:
         """Turn function wrapper"""
 
         self.__named_cities = deque()
+        if not letter:
+            letter = 'ANY'
         return self.send_message(f"now your turn and the letter is '{letter}'")
 
 class CitiesGame:
@@ -77,12 +77,9 @@ class CitiesGame:
 
         while self._is_playing and len(players_in_game) > 1:
             curr_player = players_in_game.popleft()
-            try:
-                word = self.get_next_word(curr_player, letter)
-            except TimeoutError:
-                self._loosers.append(curr_player)
-                curr_player.send_message('too much thinking. You lost!')
-            else:
+            word = self.get_next_word(curr_player, letter)
+            
+            if word:
                 self._used_cities.add(word)
                 letter = self.get_new_letter(word)
                 players_in_game.append(curr_player)
@@ -132,7 +129,6 @@ class CitiesGame:
 
         return starts_correctly and is_valid_city and not mentioned
 
-    # @timeout(1, use_signals=False)
     def get_next_word(self, player: Player, letter: str) -> str:
         """Get the word from the player
 
@@ -150,12 +146,13 @@ class CitiesGame:
         """
 
         player.turn(letter)
-
-        word = ''
-        while not self.is_valid(word, letter):
+        while self._is_playing:
             try:
                 word = player.pop_the_city()
             except IndexError:
                 time.sleep(player.PING_INTERVAL)
-
-        return word
+            else:
+                if self.is_valid(word, letter):
+                    return word
+                else:
+                    player.send_message('it is not a valid city, name another one.')
