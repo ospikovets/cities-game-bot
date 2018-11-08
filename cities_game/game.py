@@ -1,40 +1,74 @@
 """Game engine"""
 
 import signal
+import time
 from collections import deque
 from typing import List, Set
 
+from timeout_decorator import timeout, TimeoutError
 
-class CitiesGameEngine:
+
+class GameConfigs:
+
+    def __init__(self, cities: Set[str], thinking_time: int = 60):
+        self.cities = {city.lower() for city in cities}
+        self.thinkg_time = thinking_time
+
+
+class Player:
+
+    PING_INTERVAL = 0.5  # secconds
+
+    def __init__(self, send_message: callable):
+        self.send_message = send_message
+        self.__named_cities = deque()
+
+    def name_the_city(self, city: str):
+        """Name the city"""
+
+        self.__named_cities.append(city)
+    
+    def pop_the_city(self):
+        """Get first unprocessed city"""
+
+        return self.__named_cities.popleft()
+    
+    def turn(self, letter):
+        """Turn function wrapper"""
+
+        self.__named_cities = deque()
+        return self.send_message(f"now your turn and the letter is '{letter}'")
+
+class CitiesGame:
     """Class to describe game engine
 
     This class encapsulates all game logic
 
     Args:
-        players (list): List of players, who plays the game.
         cities (set): Cities awailable for the game.
         thinking_time (:obj:`int`, optional): Time in secconds
             to think about the next word. Defaults to 60.
     Attributes:
-        players (list): List of players, who plays the game.
         cities (set): Cities awailable for the game.
         thinking_time (int): Time in secconds to think about the next word.
     """
 
-    def __init__(self, players: List, cities: Set, thinking_time: int = 60):
+    def __init__(self, players: List[Player], configs: GameConfigs):
         self.players = players
-        self.cities = cities
-        self.thinking_time = thinking_time
-
+        self.configs = configs
+        self._loosers = []
         self._is_playing = False
         self._used_cities = set()
-        self._lost_players = []
+
+    @property
+    def is_playing(self):
+        return self._is_playing
 
     def start(self):
-        """Start new game
+        """Start a new game
 
         Returns:
-            list: Of the players, who didn't loose the game.
+          list: Of the players, who didn't loose the game.
         """
 
         self._is_playing = True
@@ -46,8 +80,8 @@ class CitiesGameEngine:
             try:
                 word = self.get_next_word(curr_player, letter)
             except TimeoutError:
-                self._lost_players.append(curr_player)
-                curr_player.message('You lost!')
+                self._loosers.append(curr_player)
+                curr_player.send_message('too much thinking. You lost!')
             else:
                 self._used_cities.add(word)
                 letter = self.get_new_letter(word)
@@ -59,21 +93,11 @@ class CitiesGameEngine:
         """Finish the game and name the winner(s)
 
         Returns:
-            list: Of the players, who didn't loose the game.
+          list: Of the players, who didn't loose the game.
         """
 
         self._is_playing = False
-        return self.players - self._lost_players
-
-    def restart(self):
-        """Restart the game"""
-
-        if self._is_playing:
-            self.finish()
-
-        self._used_cities = set()
-        self._lost_players = []
-        self.start()
+        return [p for p in self.players if p not in self._loosers]
 
     def get_new_letter(self, word: str) -> str:
         """Extract the letter that should be the first one in the next word
@@ -101,13 +125,15 @@ class CitiesGameEngine:
             bool: True if valid, False otherwise.
         """
 
+        word = word.lower()
         starts_correctly = word.startswith(letter)
-        is_valid_city = word in self.cities
+        is_valid_city = word in self.configs.cities
         mentioned = word in self._used_cities
 
         return starts_correctly and is_valid_city and not mentioned
 
-    def get_next_word(self, player, letter: str) -> str:
+    # @timeout(1, use_signals=False)
+    def get_next_word(self, player: Player, letter: str) -> str:
         """Get the word from the player
 
         Ask the player for the next word,
@@ -123,22 +149,13 @@ class CitiesGameEngine:
             TimeoutError: If the word wasn't gotten during the `thinkg_time`.
         """
 
-        signal.signal(signal.SIGALRM, lambda *args: raise_(TimeoutError))
-        signal.alarm(self.thinking_time)
+        player.turn(letter)
 
-        word = player.get_input(f'Your turn and the letter is "{letter}"')
+        word = ''
         while not self.is_valid(word, letter):
-            word = player.get_input('This word is not valid! '
-                                    'Please give another one!')
-
-        signal.signal(signal.SIGALRM, signal.SIG_IGN)
+            try:
+                word = player.pop_the_city()
+            except IndexError:
+                time.sleep(player.PING_INTERVAL)
 
         return word
-
-
-def raise_(ex):
-    """Raise an Exception
-
-    Wrapper to raise an exception in lambda function.
-    """
-    raise ex
